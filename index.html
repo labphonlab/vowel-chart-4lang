@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vowel Formant Chart — Bark Scale</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:   #1a1a2e; --paper: #f7f4ee;
+  --muted: #7a7468; --surf:  #edeae2; --bdr: #c8c3b8; --grid: #d4cfc6;
+  --ref:   #2471a3;   /* sample: blue */
+  --usr:   #c0392b;   /* user data:   red  */
+  --blue:  #2980b9;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Source Serif 4', Georgia, serif; background: var(--paper); color: var(--ink); min-height: 100vh; padding: 1.5rem; font-size: 18px; }
+
+/* ── Header ── */
+header { max-width: 1100px; margin: 0 auto 1.2rem; border-bottom: 2px solid var(--ink); padding-bottom: 0.7rem; display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+header h1 { font-size: 1.6rem; font-weight: 600; }
+header .sub { font-size: 1rem; color: var(--muted); font-style: italic; }
+
+/* ── Main layout ── */
+.main { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+@media (max-width: 700px) { .main { grid-template-columns: 1fr; } }
+
+.panel { background: var(--surf); border: 1px solid var(--bdr); border-radius: 2px; padding: 1rem 1.15rem; }
+.panel-title { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.7rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--bdr); }
+
+/* ── Tables ── */
+table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+th { text-align: left; padding: 0.35rem 0.45rem; font-size: 0.84rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--bdr); }
+td { padding: 0.28rem 0.35rem; border-bottom: 1px solid var(--grid); }
+td input { width: 100%; background: transparent; border: none; font-family: inherit; font-size: inherit; color: var(--ink); padding: 0.1rem 0.15rem; outline: none; }
+td input:focus { background: #fff; box-shadow: 0 0 0 1px var(--blue); border-radius: 1px; }
+td input.ipa { font-size: 1.2rem; color: var(--usr); font-family: 'Times New Roman', serif; }
+#refTbody td input.ipa { color: var(--ref); }
+tr:hover td { background: rgba(0,0,0,0.018); }
+
+/* ref table */
+.ref-ipa  { font-family: 'Times New Roman', serif; font-size: 1.18rem; color: var(--ref); }
+.ref-num  { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 1rem; }
+.ref-kw   { color: #aaa5a0; font-family: 'JetBrains Mono', monospace; font-size: 0.96rem; font-style: italic; }
+
+/* ── Legend ── */
+.legend { display: flex; gap: 1.4rem; margin-top: 0.7rem; font-size: 0.92rem; color: var(--muted); flex-wrap: wrap; }
+.swatch { display: inline-block; width: 26px; height: 3px; border-radius: 1px; vertical-align: middle; margin-right: 5px; position: relative; top: -1px; }
+.sw-ref { background: var(--ref); }
+.sw-usr { background: var(--usr); }
+
+/* ── Buttons ── */
+.btn-row { display: flex; gap: 0.6rem; margin-top: 0.8rem; flex-wrap: wrap; }
+button { font-family: 'Source Serif 4', serif; font-size: 0.96rem; padding: 0.42rem 1rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; border-radius: 1px; transition: all 0.12s; white-space: nowrap; }
+button:hover { background: var(--usr); border-color: var(--usr); }
+button.sec { background: transparent; color: var(--ink); }
+button.sec:hover { background: var(--bdr); }
+button.del { background: transparent; color: var(--muted); border-color: var(--bdr); font-size: 0.88rem; padding: 0.1rem 0.4rem; }
+button.del:hover { color: var(--usr); border-color: var(--usr); background: #fee; }
+
+/* ── Chart section ── */
+.chart-section { max-width: 1100px; margin: 1.1rem auto 0; background: var(--surf); border: 1px solid var(--bdr); border-radius: 2px; padding: 1rem 1.15rem; }
+.chart-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #fff; border: 1px solid var(--bdr); }
+.chart-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.65rem; flex-wrap: wrap; gap: 0.5rem; }
+.axis-toggle { display: flex; align-items: center; gap: 0.4rem; font-size: 0.94rem; color: var(--muted); cursor: pointer; }
+.info { font-size: 0.88rem; color: var(--muted); font-style: italic; line-height: 1.6; }
+
+  /* ── Language switcher ── */
+  .lang-switcher { max-width: 1100px; margin: 0 auto 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .lang-btn { font-family: 'Source Serif 4', serif; font-size: 0.96rem; padding: 0.4rem 1.1rem; border: 1.5px solid var(--bdr); background: var(--paper); color: var(--muted); cursor: pointer; border-radius: 2px; transition: all 0.15s; }
+  .lang-btn:hover { border-color: var(--ink); color: var(--ink); }
+  .lang-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Vowel Formant Chart — Bark Scale</h1>
+  <span class="sub">サンプルのフォルマント周波数（灰）vs. 自分のフォルマント周波数（赤）— Barkスケール比較</span>
+</header>
+
+
+<!-- ── Language switcher ── -->
+<div class="lang-switcher">
+  <button class="lang-btn active" data-lang="en" onclick="switchLang('en')">アメリカ英語</button>
+  <button class="lang-btn" data-lang="ko" onclick="switchLang('ko')">韓国語</button>
+  <button class="lang-btn" data-lang="zh" onclick="switchLang('zh')">中国語（普通話）</button>
+  <button class="lang-btn" data-lang="jp" onclick="switchLang('jp')">日本語</button>
+</div>
+
+<!-- ── Top row: two input panels ── -->
+<div class="main">
+
+  <!-- LEFT: Native Speaker input -->
+  <div class="panel">
+    <div class="panel-title" style="color:var(--ref)">サンプルのフォルマント周波数</div>
+    <table>
+      <thead><tr>
+        <th style="width:34%">Keyword</th>
+        <th style="width:20%">IPA</th>
+        <th style="width:23%">F1 (Hz)</th>
+        <th style="width:23%">F2 (Hz)</th>
+      </tr></thead>
+      <tbody id="refTbody"></tbody>
+    </table>
+    <div class="btn-row">
+      <button class="sec" onclick="clearRows('refTbody')">Clear</button>
+    </div>
+    <div class="info" style="margin-top:0.5rem">
+      サンプルの測定値を入力してください。<br>
+      二重母音（eɪ, aʊ, oʊ）は<strong>前半部分（onset）のF1・F2</strong>を使用してください。
+    </div>
+  </div>
+
+  <!-- RIGHT: Self input -->
+  <div class="panel">
+    <div class="panel-title" style="color:var(--usr)">自分のフォルマント周波数</div>
+    <table>
+      <thead><tr>
+        <th style="width:34%">Keyword</th>
+        <th style="width:20%">IPA</th>
+        <th style="width:23%">F1 (Hz)</th>
+        <th style="width:23%">F2 (Hz)</th>
+      </tr></thead>
+      <tbody id="userTbody"></tbody>
+    </table>
+    <div class="btn-row">
+      <button class="sec" onclick="clearRows('userTbody')">Clear</button>
+    </div>
+    <div class="info" style="margin-top:0.5rem">
+      自分のフォルマント測定値を入力してください。<br>
+      二重母音（eɪ, aʊ, oʊ）は<strong>前半部分（onset）のF1・F2</strong>を使用してください。
+    </div>
+  </div>
+</div>
+
+<!-- ── Chart (full width) ── -->
+<div class="chart-section">
+  <div class="panel-title">Bark-Scale Vowel Formant Chart</div>
+  <div class="legend" style="margin-bottom:0.6rem">
+    <span><span class="swatch sw-ref"></span>サンプルのフォルマント周波数</span>
+    <span><span class="swatch sw-usr"></span>自分のフォルマント周波数</span>
+    <span style="display:inline-flex;align-items:center;gap:5px">
+      <svg width="26" height="10"><line x1="0" y1="5" x2="26" y2="5" stroke="rgba(100,100,120,0.45)" stroke-width="1.5" stroke-dasharray="5,4"/></svg>IPA基本母音台形
+    </span>
+  </div>
+  <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+  <div class="chart-footer">
+    <div class="info">
+      Barkスケール（Traunmüller 1990）。目盛りはHz表示。F2: 2500→600 Hz（左→右）, F1: 200→950 Hz（上→下）<br>
+      破線台形 = IPA基本母音（CV1–8）の参照点。
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+      <label class="axis-toggle">
+        <input type="checkbox" id="chkF2F1" onchange="drawChart()">
+        横軸を F2–F1 に（backness強調）
+      </label>
+      <button class="sec" onclick="exportPNG()">↓ PNG</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// debounce用タイマー（最初に宣言）
+let _t = null;
+function scheduleUpdate() { clearTimeout(_t); _t = setTimeout(drawChart, 350); }
+
+// ════════════════════════════════════════════════════════
+// 初期母音リスト（IPA記号のみ。F1・F2は自分で入力）
+// ════════════════════════════════════════════════════════
+const LANG_DATA = {
+  en: {
+    label: 'アメリカ英語',
+    vowels: [
+      { kw: 'bead',  ipa: 'iː' }, { kw: 'bid',   ipa: 'ɪ'  },
+      { kw: 'bed',   ipa: 'e'  }, { kw: 'bayed', ipa: 'eɪ' },
+      { kw: 'bad',   ipa: 'æ'  }, { kw: 'pod',   ipa: 'ɑ'  },
+      { kw: 'bough', ipa: 'aʊ' }, { kw: 'bode',  ipa: 'oʊ' },
+      { kw: 'good',  ipa: 'ʊ'  }, { kw: 'booed', ipa: 'uː' },
+      { kw: 'bud',   ipa: 'ʌ'  }, { kw: 'bird',  ipa: 'ɜː' },
+    ]
+  },
+  ko: {
+    label: '韓国語',
+    vowels: [
+      { kw: '시장', ipa: 'i' }, { kw: '베다', ipa: 'e' },
+      { kw: '태도', ipa: 'ɛ' }, { kw: '말',   ipa: 'a' },
+      { kw: '보수', ipa: 'o' }, { kw: '수박', ipa: 'u' },
+      { kw: '벌',   ipa: 'ʌ' }, { kw: '음식', ipa: 'ɯ' },
+    ]
+  },
+  zh: {
+    label: '中国語（普通話）',
+    vowels: [
+      { kw: '英', ipa: 'i' }, { kw: '魚', ipa: 'y' },
+      { kw: '放', ipa: 'a' }, { kw: '兒', ipa: 'ə' },
+      { kw: '翁', ipa: 'u' }, { kw: '鵝', ipa: 'ɤ' },
+    ]
+  },
+  jp: {
+    label: '日本語',
+    vowels: [
+      { kw: 'イミ（意味）',     ipa: 'i' },
+      { kw: 'エメ（笑め）',     ipa: 'e' },
+      { kw: 'アマ（海女）',     ipa: 'a' },
+      { kw: 'オモ（表面）',     ipa: 'o' },
+      { kw: 'ウム（化膿する）', ipa: 'ɯ' },
+    ]
+  },
+};
+
+let currentLang = 'en';
+
+// ════════════════════════════════════════════════════════
+// 共通：行生成・テーブル操作
+// ════════════════════════════════════════════════════════
+function makeRow(kw='', ipa='', f1='', f2='') {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text"   value="${kw}"  placeholder="keyword" oninput="scheduleUpdate()"></td>
+    <td><input class="ipa"   value="${ipa}" placeholder="iː"      oninput="scheduleUpdate()"></td>
+    <td><input type="number" value="${f1}"  placeholder="—" min="50" max="5000" step="1" oninput="scheduleUpdate()"></td>
+    <td><input type="number" value="${f2}"  placeholder="—" min="50" max="5000" step="1" oninput="scheduleUpdate()"></td>
+  `;
+  return tr;
+}
+
+function clearRows(tbodyId) {
+  const tb = document.getElementById(tbodyId);
+  [...tb.querySelectorAll('input[type="number"]')].forEach(inp => { inp.value = ''; });
+  scheduleUpdate();
+}
+
+function getRows(tbodyId) {
+  return [...document.querySelectorAll(`#${tbodyId} tr`)].map(tr => {
+    const inp = tr.querySelectorAll('input');
+    return { kw: inp[0].value.trim(), ipa: inp[1].value.trim(),
+             f1: parseFloat(inp[2].value), f2: parseFloat(inp[3].value) };
+  }).filter(r => r.ipa && !isNaN(r.f1) && !isNaN(r.f2));
+}
+
+function switchLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  const vowels = LANG_DATA[lang].vowels;
+  ['refTbody', 'userTbody'].forEach(id => {
+    const tb = document.getElementById(id);
+    tb.innerHTML = '';
+    vowels.forEach(v => tb.appendChild(makeRow(v.kw, v.ipa, '', '')));
+  });
+  scheduleUpdate();
+}
+
+(function initTables() { switchLang('en'); })();
+
+// ════════════════════════════════════════════════════════
+// Bark conversion (Traunmüller 1990)
+// ════════════════════════════════════════════════════════
+const hz2bark = f => 26.81 * f / (1960 + f) - 0.53;
+
+// ════════════════════════════════════════════════════════
+// Axis config
+// ════════════════════════════════════════════════════════
+const F2_TICKS   = [600, 800, 1000, 1200, 1500, 2000, 2500, 3000];
+const F1_TICKS   = [150, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+const DIFF_TICKS = [200, 500, 800, 1100, 1400, 1700, 2000, 2300];
+
+const AXIS = {
+  f2min: hz2bark(500),  f2max: hz2bark(3200),
+  f1min: hz2bark(130),  f1max: hz2bark(1050),
+  dfmin: hz2bark(100),  dfmax: hz2bark(2400),
+};
+
+// ════════════════════════════════════════════════════════
+// Custom grid + tick + label plugin
+// ════════════════════════════════════════════════════════
+function makeGridPlugin(id, xTicksFn, yTicksFn, xTitle, yTitle) {
+  return {
+    id,
+    beforeDatasetsDraw(ch) {
+      const { ctx, chartArea: ca, scales: { x, y } } = ch;
+      const xt = xTicksFn(), yt = yTicksFn();
+      ctx.save();
+      ctx.strokeStyle = '#e0dbd2'; ctx.lineWidth = 1;
+      xt.vals.forEach(v => {
+        const px = x.getPixelForValue(v);
+        if (px >= ca.left - 1 && px <= ca.right + 1) {
+          ctx.beginPath(); ctx.moveTo(px, ca.top); ctx.lineTo(px, ca.bottom); ctx.stroke();
+        }
+      });
+      yt.vals.forEach(v => {
+        const py = y.getPixelForValue(v);
+        if (py >= ca.top - 1 && py <= ca.bottom + 1) {
+          ctx.beginPath(); ctx.moveTo(ca.left, py); ctx.lineTo(ca.right, py); ctx.stroke();
+        }
+      });
+      ctx.restore();
+    },
+    afterDraw(ch) {
+      const { ctx, chartArea: ca, scales: { x, y }, canvas } = ch;
+      const xt = xTicksFn(), yt = yTicksFn();
+      ctx.save();
+
+      // ── Bottom ticks + F2 labels ──
+      ctx.font = '14px "JetBrains Mono",monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillStyle = '#7a7468';
+      xt.vals.forEach((v, i) => {
+        const px = x.getPixelForValue(v);
+        if (px < ca.left - 1 || px > ca.right + 1) return;
+        const labelY = Math.min(ca.bottom + 5, canvas.height - 4);
+        ctx.fillText(xt.labels[i], px, labelY);
+        ctx.strokeStyle = '#aaa5a0'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(px, ca.bottom); ctx.lineTo(px, ca.bottom + 4); ctx.stroke();
+      });
+
+      // ── Left ticks + F1 labels ──
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#7a7468';
+      yt.vals.forEach((v, i) => {
+        const py = y.getPixelForValue(v);
+        if (py < ca.top - 1 || py > ca.bottom + 1) return;
+        const labelX = Math.max(ca.left - 5, 36);
+        ctx.fillText(yt.labels[i], labelX, py);
+        ctx.strokeStyle = '#aaa5a0'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(ca.left, py); ctx.lineTo(ca.left - 4, py); ctx.stroke();
+      });
+
+      // ── Axis titles ──
+      ctx.font = '14px "Source Serif 4",Georgia,serif'; ctx.fillStyle = '#7a7468';
+
+      // F2 title: top-right, inside canvas
+      ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+      ctx.fillText(xTitle, Math.min(ca.right, canvas.width - 4), 4);
+
+      // F1 title: rotated along left edge, fully inside canvas
+      ctx.save();
+      const titleX = Math.max(12, ca.left - 52);
+      const titleY = ca.top + (ca.bottom - ca.top) / 2;
+      ctx.translate(titleX, titleY);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(yTitle, 0, 0);
+      ctx.restore();
+
+      ctx.restore();
+    }
+  };
+}
+
+function barkXTicks() {
+  return { vals: F2_TICKS.map(hz2bark), labels: F2_TICKS.map(String) };
+}
+function barkYTicks() {
+  return { vals: F1_TICKS.map(hz2bark), labels: F1_TICKS.map(String) };
+}
+function diffXTicks() {
+  return { vals: DIFF_TICKS.map(hz2bark), labels: DIFF_TICKS.map(String) };
+}
+
+const gridPluginF2   = makeGridPlugin('barkF2',   barkXTicks, barkYTicks, '← F2 (Hz, Bark scale)', 'F1 (Hz, Bark scale) ↓');
+const gridPluginDiff = makeGridPlugin('barkDiff', diffXTicks, barkYTicks, '← F2–F1 (Hz, Bark scale)', 'F1 (Hz, Bark scale) ↓');
+
+// ════════════════════════════════════════════════════════
+// IPA label plugin — collision-aware, ref/user vertically separated
+// ════════════════════════════════════════════════════════
+const ipaPlugin = {
+  id: 'ipaLabels',
+  afterDatasetsDraw(ch) {
+    const { ctx, data } = ch;
+
+    // 全点収集（dataset index も保持）
+    const allPts = [];
+    data.datasets.forEach((ds, di) => {
+      if (!ds._ipaLabels) return;
+      const meta = ch.getDatasetMeta(di);
+      meta.data.forEach((pt, i) => {
+        allPts.push({
+          px: pt.x, py: pt.y,
+          label: ds._ipaLabels[i] || '',
+          color: ds._labelColor || '#333',
+          size:  ds._labelSize  || 18,
+          dsIdx: di,   // 0=ref(grey), 1=user(red)
+        });
+      });
+    });
+
+    // オフセット計算
+    // ① 同ラベル同士で近い場合: ref を上・user を下にずらす
+    // ② その他の近接点: 反発力で押し出す
+    const BASE = 11;
+    const CLOSE = 64;  // px以内を「近い」とみなす閾値
+
+    allPts.forEach(p => {
+      let fx = 0, fy = 0;
+
+      allPts.forEach(q => {
+        if (q === p) return;
+        const ex = p.px - q.px, ey = p.py - q.py;
+        const dist = Math.sqrt(ex * ex + ey * ey) || 1;
+        if (dist >= CLOSE) return;
+
+        if (p.label === q.label) {
+          // 同一ラベル: ref(dsIdx===0)を上、user(dsIdx===1)を下に固定分離
+          fy += p.dsIdx === 0 ? -(CLOSE - dist) : (CLOSE - dist);
+        } else {
+          // 異なるラベル: 通常の反発
+          fx += (ex / dist) * (CLOSE - dist) * 0.6;
+          fy += (ey / dist) * (CLOSE - dist) * 0.6;
+        }
+      });
+
+      const flen = Math.sqrt(fx * fx + fy * fy);
+      if (flen > 0.5) {
+        p.ox = (fx / flen) * BASE;
+        p.oy = (fy / flen) * BASE;
+      } else {
+        p.ox = BASE;
+        p.oy = 0;
+      }
+
+      // 同一ラベルが近い場合の垂直ずれを追加
+      const hasSameLabelNear = allPts.some(q =>
+        q !== p && q.label === p.label &&
+        Math.hypot(p.px - q.px, p.py - q.py) < CLOSE
+      );
+      if (hasSameLabelNear) {
+        p.oy += p.dsIdx === 0 ? -10 : 10;
+      }
+
+      p.align = p.ox >= 0 ? 'left' : 'right';
+    });
+
+    // 描画
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,255,255,0.98)';
+    ctx.shadowBlur  = 6;
+    allPts.forEach(p => {
+      ctx.font         = `${p.size}px "Times New Roman","Noto Serif",serif`;
+      ctx.fillStyle    = p.color;
+      ctx.textAlign    = p.align;
+      ctx.textBaseline = 'middle';
+      const lx = p.px + p.ox + (p.align === 'left' ? 2 : -2);
+      const ly = p.py + p.oy;
+      ctx.fillText(p.label, lx, ly);
+    });
+    ctx.restore();
+  }
+};
+
+// ════════════════════════════════════════════════════════
+// IPA Primary Cardinal Vowels
+// 出典: Ladefoged (2001) A Course in Phonetics 4th ed., Fig. 9.2 に対応した
+//       Fant (1960), Bladon & Fant (1978), Deterding (1997) の代表値。
+// CV1–CV4 は前舌・CV5–CV8 は後舌の調音極限として定義される参照点。
+// ════════════════════════════════════════════════════════
+const CARDINAL = [
+  { n: 1, ipa: 'i', f1:  240, f2: 2400 },  // CV1 close front unrounded
+  { n: 2, ipa: 'e', f1:  390, f2: 2300 },  // CV2 close-mid front unrounded
+  { n: 3, ipa: 'ɛ', f1:  610, f2: 1900 },  // CV3 open-mid front unrounded
+  { n: 4, ipa: 'a', f1:  850, f2: 1610 },  // CV4 open front unrounded
+  { n: 5, ipa: 'ɑ', f1:  800, f2: 1100 },  // CV5 open back unrounded
+  { n: 6, ipa: 'ɔ', f1:  600, f2:  850 },  // CV6 open-mid back rounded
+  { n: 7, ipa: 'o', f1:  380, f2:  700 },  // CV7 close-mid back rounded
+  { n: 8, ipa: 'u', f1:  250, f2:  650 },  // CV8 close back rounded
+];
+
+// 台形の輪郭: front列(1→4) → 下辺(4→5) → back列(5→8) → 上辺(8→1)
+const TRAP_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, 0];
+
+// Cardinal vowel trapezoid plugin
+const trapezoidPlugin = {
+  id: 'trapezoid',
+  beforeDatasetsDraw(ch) {
+    const { ctx, scales: { x, y } } = ch;
+    const useF2F1 = document.getElementById('chkF2F1').checked;
+
+    function toPixel(cv) {
+      const bx = useF2F1 ? hz2bark(cv.f2 - cv.f1) : hz2bark(cv.f2);
+      return { px: x.getPixelForValue(bx), py: y.getPixelForValue(hz2bark(cv.f1)) };
+    }
+
+    ctx.save();
+
+    // ── 台形輪郭線 ──
+    ctx.beginPath();
+    TRAP_ORDER.forEach((ci, i) => {
+      const { px, py } = toPixel(CARDINAL[ci]);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.strokeStyle = 'rgba(80,80,110,0.28)';
+    ctx.lineWidth   = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // ── CV点（小さい白抜き円） ──
+    CARDINAL.forEach(cv => {
+      const { px, py } = toPixel(cv);
+      ctx.beginPath();
+      ctx.arc(px, py, 3, 0, Math.PI * 2);
+      ctx.fillStyle   = 'rgba(80,80,110,0.12)';
+      ctx.strokeStyle = 'rgba(80,80,110,0.40)';
+      ctx.lineWidth   = 1;
+      ctx.fill(); ctx.stroke();
+    });
+
+    // ── CV IPA記号 ──
+    ctx.font         = '20px "Times New Roman","Noto Serif",serif';
+    ctx.fillStyle    = 'rgba(70,70,100,0.50)';
+    ctx.shadowColor  = 'rgba(255,255,255,0.92)';
+    ctx.shadowBlur   = 3;
+    ctx.textBaseline = 'middle';
+    CARDINAL.forEach(cv => {
+      const { px, py } = toPixel(cv);
+      const isFront  = cv.n <= 4;
+      ctx.textAlign  = isFront ? 'right' : 'left';
+      ctx.fillText(cv.ipa, px + (isFront ? -7 : 7), py);
+    });
+
+    ctx.restore();
+  }
+};
+
+Chart.register(ipaPlugin, trapezoidPlugin, gridPluginF2, gridPluginDiff);
+
+// ════════════════════════════════════════════════════════
+// Chart
+// ════════════════════════════════════════════════════════
+let chart = null;
+
+function xVal(r, useF2F1) {
+  return useF2F1 ? hz2bark(r.f2 - r.f1) : hz2bark(r.f2);
+}
+
+function makeRefDataset(rows, useF2F1) {
+  return {
+    label: 'サンプルのフォルマント周波数',
+    data: rows.map(r => ({ x: xVal(r, useF2F1), y: hz2bark(r.f1) })),
+    _ipaLabels: rows.map(r => r.ipa),
+    _hzRows:    rows,
+    _labelColor: '#2471a3',
+    _labelSize: 21,
+    pointRadius: 4,
+    pointStyle: 'circle',
+    pointBackgroundColor: 'rgba(36,113,163,0.15)',
+    pointBorderColor: '#2471a3',
+    pointBorderWidth: 1.5,
+    showLine: false,
+    order: 2,
+  };
+}
+
+function makeUserDataset(rows, useF2F1) {
+  return {
+    label: '自分のフォルマント周波数',
+    data: rows.map(r => ({ x: xVal(r, useF2F1), y: hz2bark(r.f1) })),
+    _ipaLabels: rows.map(r => r.ipa),
+    _hzRows:    rows,
+    _labelColor: '#c0392b',
+    _labelSize: 23,
+    pointRadius: 5,
+    pointStyle: 'circle',
+    pointBackgroundColor: 'rgba(192,57,43,0.15)',
+    pointBorderColor: '#c0392b',
+    pointBorderWidth: 2,
+    showLine: false,
+    order: 1,
+  };
+}
+
+function tooltipLabel(item) {
+  const ds = item.dataset;
+  const r  = ds._hzRows?.[item.dataIndex];
+  const lbl = ds._ipaLabels?.[item.dataIndex] || '';
+  if (!r) return lbl;
+  const kw = r.kw || r.keyword || '';
+  return `${lbl}${kw ? ' (' + kw + ')' : ''}  F1: ${r.f1} Hz  F2: ${r.f2} Hz`;
+}
+
+function drawChart() {
+  const refRows  = getRows('refTbody');
+  const userRows = getRows('userTbody');
+  const useF2F1  = document.getElementById('chkF2F1').checked;
+  const gp       = useF2F1 ? gridPluginDiff : gridPluginF2;
+  const xMin     = useF2F1 ? AXIS.dfmin : AXIS.f2min;
+  const xMax     = useF2F1 ? AXIS.dfmax : AXIS.f2max;
+
+  const datasets = [
+    ...(refRows.length  > 0 ? [makeRefDataset(refRows,   useF2F1)] : []),
+    ...(userRows.length > 0 ? [makeUserDataset(userRows, useF2F1)] : []),
+  ];
+
+  // データがなくてもグラフ（台形・軸）は常に表示する
+  if (!datasets.length) {
+    datasets.push({
+      label: '_empty',
+      data: [],
+      pointRadius: 0,
+      showLine: false,
+    });
+  }
+
+  if (chart) { chart.destroy(); chart = null; }
+
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      animation: { duration: 300, easing: 'easeOutQuart' },
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 26, left: 64, right: 32, bottom: 38 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: tooltipLabel },
+          bodyFont: { family: "'JetBrains Mono',monospace", size: 11 },
+          backgroundColor: '#1a1a2e', padding: 8,
+        }
+      },
+      scales: {
+        x: { min: xMin, max: xMax, reverse: true, grid: { display: false }, ticks: { display: false } },
+        y: { min: AXIS.f1min, max: AXIS.f1max, reverse: true, grid: { display: false }, ticks: { display: false } },
+      }
+    },
+    plugins: [trapezoidPlugin, gp, ipaPlugin],
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// Export
+// ════════════════════════════════════════════════════════
+function exportPNG() {
+  if (!chart) return;
+  const a = document.createElement('a');
+  a.href = document.getElementById('mainChart').toDataURL('image/png');
+  a.download = 'vowel_formant_bark.png'; a.click();
+}
+function exportCSV() {
+  const refRows  = getRows('refTbody');
+  const userRows = getRows('userTbody');
+  const lines = ['speaker,keyword,vowel,F1,F2',
+    ...refRows.map(r  => `sample,${r.kw},${r.ipa},${r.f1},${r.f2}`),
+    ...userRows.map(r => `self,${r.kw},${r.ipa},${r.f1},${r.f2}`),
+  ];
+  if (lines.length === 1) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], {type:'text/csv'}));
+  a.download = 'vowel_data.csv'; a.click();
+}
+
+// ════════════════════════════════════════════════════════
+// Debounce & init
+// ════════════════════════════════════════════════════════
+drawChart();
+</script>
+</body>
+</html>
